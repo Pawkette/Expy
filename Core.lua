@@ -30,7 +30,7 @@ local PlayerStates =
 ---
 -- Addon
 ---
-Expy = LibStub( 'AceAddon-3.0' ):NewAddon( 'Expy', 'AceConsole-3.0', 'AceEvent-3.0' )
+local Expy = LibStub( 'AceAddon-3.0' ):NewAddon( 'Expy', 'AceConsole-3.0', 'AceEvent-3.0' )
 Expy._CurrentXP = 0
 Expy._MaxXP     = 0
 Expy._DeltaXP   = 0
@@ -40,6 +40,9 @@ Expy._Invalid   = {}
 Expy._Frame     = nil
 Expy._Resting   = PlayerStates.NORMAL
 Expy._RestedXP  = 0
+
+
+local LibSmooth = LibStub( 'LibSmoothStatusBar-1.0' )
 
 ---
 -- Called when the addon is initialized
@@ -99,12 +102,16 @@ function Expy:InitializeFrame()
     self._RestBar:SetPoint( 'BOTTOMRIGHT', self._Frame, 'BOTTOMRIGHT', 1, 1 )
     self._RestBar:SetMinMaxValues( 0.0, 1.0 )
 
+    LibSmooth:SmoothBar( self._RestBar )
+
     self._XPBar = CreateFrame( 'StatusBar', 'Expy.XPBar', self._Frame )
     self._XPBar:SetStatusBarTexture( [[Interface\AddOns\Expy\Art\statusbar]] )
     self._XPBar:SetStatusBarColor( 0.98, 0.84, 0.09, 1.0 )
     self._XPBar:SetPoint( 'TOPLEFT', self._Frame, 'TOPLEFT', -1, -1 )
     self._XPBar:SetPoint( 'BOTTOMRIGHT', self._Frame, 'BOTTOMRIGHT', 1, 1 )
     self._XPBar:SetMinMaxValues( 0.0, 1.0 )
+
+    LibSmooth:SmoothBar( self._XPBar )
 
     self._Textfield = self._Frame:CreateFontString( 'Expy.Text', 'OVERLAY' )
     self._Textfield:SetShadowOffset( 1, -1 )
