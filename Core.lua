@@ -122,7 +122,7 @@ function Expy:InitializeFrame()
     self._Percent:SetShadowOffset( 1, -1 )
     self._Percent:SetTextColor( 1, 1, 1, 1 )
     self._Percent:SetPoint( 'LEFT', self._Textfield, 'RIGHT', 2, 0 )
-    self._Percent:SetFont( STANDARD_TEXT_FONT, 8, nil )
+    self._Percent:SetFont( STANDARD_TEXT_FONT, 10, nil )
 end
 
 ---
@@ -151,7 +151,7 @@ function Expy:OnUpdate()
     end
 
     if ( self:IsInvalid( InvalidationTypes.LEVEL ) ) then
-        self._LevelField:SetText( 'Lv. ' .. self._Level )
+        self._LevelField:SetText( 'Lv ' .. self._Level )
     end
 
     if ( self:IsInvalid( InvalidationTypes.XP ) ) then
