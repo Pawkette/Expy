@@ -1,0 +1,8 @@
+## Interface: 40000
+## Title: Expy
+## Notes: Simple XP bar replacement
+## Author: Pawkette
+## Version: 0.1
+
+Embeds.xml
+Core.lua
