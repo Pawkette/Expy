@@ -1,7 +1,7 @@
 ---
 -- Expy is a simple XP bar replacement addon inspired by more minimal games.
+-- author: Sammy James (aka Pawkette)
 --
-
 local insert    = table.insert
 local remove    = table.remove
 local sort      = table.sort
@@ -17,7 +17,7 @@ local LEVEL_TABLE =
     90,
     100,
     110,
-    110, -- temp
+    110, -- #TODO #Sammy update this when xp gain is enabled
 }
 local MAX_LEVEL     = LEVEL_TABLE[ GetExpansionLevel() ]
 local FRAME_HEIGHT  = 8
@@ -46,17 +46,18 @@ local Modes =
 ---
 -- Addon
 ---
-local Expy = LibStub( 'AceAddon-3.0' ):NewAddon( 'Expy', 'AceConsole-3.0', 'AceEvent-3.0' )
-Expy._CurrentXP = 0
-Expy._MaxXP     = 0
-Expy._DeltaXP   = 0
-Expy._Level     = 0
-Expy._XPEnabled = true
-Expy._Invalid   = {}
-Expy._Frame     = nil
-Expy._Resting   = PlayerStates.NORMAL
-Expy._RestedXP  = 0
-Expy._Mode      = Modes.EXPERIENCE
+local Expy          = LibStub( 'AceAddon-3.0' ):NewAddon( 'Expy', 'AceConsole-3.0', 'AceEvent-3.0' )
+Expy._CurrentXP     = 0
+Expy._MaxXP         = 0
+Expy._DeltaXP       = 0
+Expy._Level         = 0
+Expy._XPEnabled     = true
+Expy._Invalid       = {}
+Expy._Frame         = nil
+Expy._Resting       = PlayerStates.NORMAL
+Expy._RestedXP      = 0
+Expy._Mode          = Modes.EXPERIENCE
+Expy._UpdatePending = false
 
 
 local LibSmooth = LibStub( 'LibSmoothStatusBar-1.0' )
@@ -74,17 +75,16 @@ end
 function Expy:OnEnable()
     self:Print( '[[ OnEnable ]]' )
 
-    self:RegisterChatCommand( 'expy',                    'HandleSlashCommand'     )
-    self:RegisterEvent( 'DISABLE_XP_GAIN',               'HandleXPDisabled'       )
-    self:RegisterEvent( 'ENABLE_XP_GAIN',                'HandleXPEnabled'        )
-    self:RegisterEvent( 'PLAYER_XP_UPDATE',              'HandleXPUpdate'         )
-    self:RegisterEvent( 'PLAYER_LEVEL_UP',               'HandleLevelUp'          )
-    self:RegisterEvent( 'PLAYER_UPDATE_RESTING',         'HandleRestingUpdate'    )
-    self:RegisterEvent( 'UPDATE_EXHAUSTION',             'HandleRestingXPUpdate'  )
-    self:RegisterEvent( 'CHAT_MSG_COMBAT_FACTION_CHANGE','HandleReputationUpdate' )
+    self:RegisterChatCommand( 'expy',            'HandleSlashCommand'     )
+    self:RegisterEvent( 'DISABLE_XP_GAIN',       'HandleXPDisabled'       )
+    self:RegisterEvent( 'ENABLE_XP_GAIN',        'HandleXPEnabled'        )
+    self:RegisterEvent( 'PLAYER_XP_UPDATE',      'HandleXPUpdate'         )
+    self:RegisterEvent( 'PLAYER_LEVEL_UP',       'HandleLevelUp'          )
+    self:RegisterEvent( 'PLAYER_UPDATE_RESTING', 'HandleRestingUpdate'    )
+    self:RegisterEvent( 'UPDATE_EXHAUSTION',     'HandleRestingXPUpdate'  )
+    self:RegisterEvent( 'UPDATE_FACTION',        'HandleReputationUpdate' )
 
     self:InitializeFrame()
-    self._Frame:SetScript( 'OnUpdate', function( self, _ ) self._Parent:OnUpdate() end)
 
     self:HandleRestingUpdate()
     self:HandleLevelUp( nil, UnitLevel( 'player' ) )
@@ -176,12 +176,6 @@ function Expy:SetMode( new_mode )
         self:Invalidate( InvalidationTypes.MODE )
         self._Mode = new_mode
     end
-
-    if (self._Mode == Modes.EXPERIENCE) then
-
-    elseif (self._Mode == Modes.REPUTATION ) then
-
-    end
 end
 
 ---
@@ -218,7 +212,20 @@ function Expy:OnUpdate()
         self._RestBar:SetValue(0.0)
     end
 
+    -- revert all these to default
     self._Invalid = {}
+    self._Frame:SetScript( 'OnUpdate', nil )
+    self._UpdatePending = false
+end
+
+---
+-- bind to 'OnUpdate' and then refresh the ui
+--
+function Expy:RequestUpdate()
+    if ( not self._UpdatePending ) then
+        self._Frame:SetScript( 'OnUpdate', function( self, _ ) self._Parent:OnUpdate() end )
+        self._UpdatePending = true
+    end
 end
 
 ---
@@ -237,6 +244,9 @@ function Expy:Invalidate( types )
             insert( self._Invalid, types )
         end
     end
+
+    -- register for tick so we can update all at once
+    self:RequestUpdate()
 end
 
 ---
@@ -281,7 +291,6 @@ end
 
 ---
 -- Called when a unit's xp changes
---
 --
 function Expy:HandleXPUpdate()
     local PreviousXP    = self._CurrentXP
@@ -330,7 +339,7 @@ function Expy:HandleRestingXPUpdate()
 end
 
 ---
---
+-- Just refresh everything
 --
 function Expy:HandleReputationUpdate(...)
     self:Invalidate( InvalidationTypes.LEVEL )
