@@ -10,21 +10,37 @@ local floor     = math.floor
 ---
 -- Constants
 ---
-local MAX_LEVEL     = 100
+local LEVEL_TABLE = 
+{
+    70,
+    85,
+    90,
+    100,
+    110,
+    110, -- temp
+}
+local MAX_LEVEL     = LEVEL_TABLE[ GetExpansionLevel() ]
 local FRAME_HEIGHT  = 8
 
 local InvalidationTypes = 
 {
-    XP = 1,
-    REST_XP = 2,
+    XP         = 1,
+    REST_XP    = 2,
     REST_STATE = 3,
-    LEVEL = 4,
+    LEVEL      = 4,
+    MODE       = 5,
 }
 
 local PlayerStates = 
 {
     RESTING = 1,
-    NORMAL = 2,
+    NORMAL  = 2,
+}
+
+local Modes =
+{
+    EXPERIENCE = 1,
+    REPUTATION = 2,
 }
 
 ---
@@ -40,6 +56,7 @@ Expy._Invalid   = {}
 Expy._Frame     = nil
 Expy._Resting   = PlayerStates.NORMAL
 Expy._RestedXP  = 0
+Expy._Mode      = Modes.EXPERIENCE
 
 
 local LibSmooth = LibStub( 'LibSmoothStatusBar-1.0' )
@@ -57,13 +74,14 @@ end
 function Expy:OnEnable()
     self:Print( '[[ OnEnable ]]' )
 
-    self:RegisterChatCommand( 'expy',               'HandleSlashCommand' )
-    self:RegisterEvent( 'DISABLE_XP_GAIN',          'HandleXPDisabled' )
-    self:RegisterEvent( 'ENABLE_XP_GAIN',           'HandleXPEnabled' )
-    self:RegisterEvent( 'PLAYER_XP_UPDATE',         'HandleXPUpdate' )
-    self:RegisterEvent( 'PLAYER_LEVEL_UP',          'HandleLevelUp' )
-    self:RegisterEvent( 'PLAYER_UPDATE_RESTING',    'HandleRestingUpdate' )
-    self:RegisterEvent( 'UPDATE_EXHAUSTION',        'HandleRestingXPUpdate')
+    self:RegisterChatCommand( 'expy',                    'HandleSlashCommand'     )
+    self:RegisterEvent( 'DISABLE_XP_GAIN',               'HandleXPDisabled'       )
+    self:RegisterEvent( 'ENABLE_XP_GAIN',                'HandleXPEnabled'        )
+    self:RegisterEvent( 'PLAYER_XP_UPDATE',              'HandleXPUpdate'         )
+    self:RegisterEvent( 'PLAYER_LEVEL_UP',               'HandleLevelUp'          )
+    self:RegisterEvent( 'PLAYER_UPDATE_RESTING',         'HandleRestingUpdate'    )
+    self:RegisterEvent( 'UPDATE_EXHAUSTION',             'HandleRestingXPUpdate'  )
+    self:RegisterEvent( 'CHAT_MSG_COMBAT_FACTION_CHANGE','HandleReputationUpdate' )
 
     self:InitializeFrame()
     self._Frame:SetScript( 'OnUpdate', function( self, _ ) self._Parent:OnUpdate() end)
@@ -72,6 +90,7 @@ function Expy:OnEnable()
     self:HandleLevelUp( nil, UnitLevel( 'player' ) )
     self:HandleXPUpdate()
     self:HandleRestingXPUpdate()
+    self:HandleReputationUpdate()
 end
 
 ---
@@ -149,6 +168,22 @@ function Expy:HandleSlashCommand( _ )
     self:Print( '[[ HandleSlashCommand ]]' )
 end
 
+--- 
+-- called to switch between xp and rep mode
+--
+function Expy:SetMode( new_mode )
+    if (new_mode ~= self._Mode) then
+        self:Invalidate( InvalidationTypes.MODE )
+        self._Mode = new_mode
+    end
+
+    if (self._Mode == Modes.EXPERIENCE) then
+
+    elseif (self._Mode == Modes.REPUTATION ) then
+
+    end
+end
+
 ---
 -- This is where we actually determine if we need to update the UI
 --
@@ -158,25 +193,29 @@ function Expy:OnUpdate()
     end
 
     if ( self:IsInvalid( InvalidationTypes.LEVEL ) ) then
-        self._LevelField:SetText( 'Lv ' .. self._Level )
+        self._LevelField:SetText( self:GetTracked() )
     end
 
     if ( self:IsInvalid( InvalidationTypes.XP ) ) then
-        self._XPBar:SetValue( self._CurrentXP / self._MaxXP )
-        self._Percent:SetText( '( ' .. floor( ( self._CurrentXP / self._MaxXP ) * 100.0 ) .. '% )' )
-        self._Textfield:SetText( self._CurrentXP .. ' / ' .. self._MaxXP )
+        self._XPBar:SetValue( self:GetProgressScalar() )
+        self._Percent:SetText( '( ' .. floor( ( self:GetProgressScalar() ) * 100.0 ) .. '% )' )
+        self._Textfield:SetText( self:GetProgressText() )
     end
 
-    if ( self:IsInvalid( InvalidationTypes.REST_XP ) ) then
-        self._RestBar:SetValue( ( self._CurrentXP + ( self._RestedXP or 0 ) ) / self._MaxXP )
-    end
-        
-    if ( self:IsInvalid( InvalidationTypes.REST_STATE ) ) then
-        if ( self._Resting == PlayerStates.RESTING ) then
-            self._RestBar:SetStatusBarColor( 0.09, 0.47, 0.98, 0.75 )
-        else
-            self._RestBar:SetStatusBarColor( 0.12, 0.69, 0.06, 0.75 )
+    if ( self._Mode == Modes.EXPERIENCE ) then
+        if ( self:IsInvalid( InvalidationTypes.REST_XP ) ) then
+            self._RestBar:SetValue( ( self._CurrentXP + ( self._RestedXP or 0 ) ) / self._MaxXP )
         end
+        
+        if ( self:IsInvalid( InvalidationTypes.REST_STATE ) ) then
+            if ( self._Resting == PlayerStates.RESTING ) then
+                self._RestBar:SetStatusBarColor( 0.09, 0.47, 0.98, 0.75 )
+            else
+                self._RestBar:SetStatusBarColor( 0.12, 0.69, 0.06, 0.75 )
+            end
+        end
+    else
+        self._RestBar:SetValue(0.0)
     end
 
     self._Invalid = {}
@@ -244,7 +283,7 @@ end
 -- Called when a unit's xp changes
 --
 --
-function Expy:HandleXPUpdate( )
+function Expy:HandleXPUpdate()
     local PreviousXP    = self._CurrentXP
 
     self._CurrentXP     = UnitXP( 'player' )
@@ -262,6 +301,9 @@ function Expy:HandleLevelUp( _, level )
     self._Level = level
     self._MaxXP = UnitXPMax( 'player' )
 
+    if ( self._Level == MAX_LEVEL ) then
+        self:SetMode( Modes.REPUTATION )
+    end
     self:Invalidate( InvalidationTypes.LEVEL )
 end
 
@@ -277,6 +319,7 @@ function Expy:HandleRestingUpdate()
 
     self:Invalidate( InvalidationTypes.REST_STATE ) 
 end
+
 ---
 -- Called when the player's rested xp changes
 --
@@ -285,3 +328,48 @@ function Expy:HandleRestingXPUpdate()
 
     self:Invalidate( InvalidationTypes.REST_XP )
 end
+
+---
+--
+--
+function Expy:HandleReputationUpdate(...)
+    self:Invalidate( InvalidationTypes.LEVEL )
+    self:Invalidate( InvalidationTypes.XP )
+end
+
+---
+-- getters
+--
+function Expy:GetTracked() 
+    if ( self._Mode == Modes.EXPERIENCE ) then
+        return 'Lv ' .. self._Level
+    elseif ( self._Mode == Modes.REPUTATION ) then
+        local name, standing, _, _, _ = GetWatchedFactionInfo()
+        return name .. ' (' .. _G[ 'FACTION_STANDING_LABEL' .. standing ] .. ')'
+    end
+
+    return nil
+end
+
+function Expy:GetProgressScalar()
+    if ( self._Mode == Modes.EXPERIENCE ) then
+        return self._CurrentXP / self._MaxXP
+    elseif ( self._Mode == Modes.REPUTATION ) then
+        local _, _, min, max, value = GetWatchedFactionInfo()
+        return (value - min) / (max - min)
+    end
+
+    return nil
+end
+
+function Expy:GetProgressText()
+    if ( self._Mode == Modes.EXPERIENCE ) then
+        return  self._CurrentXP .. ' / ' .. self._MaxXP
+    elseif ( self._Mode == Modes.REPUTATION ) then
+        local _, _, min, max, value = GetWatchedFactionInfo()
+        return (value - min) .. ' / ' .. (max - min)
+    end
+
+    return nil
+end
+
