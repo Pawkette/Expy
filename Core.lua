@@ -187,13 +187,26 @@ function Expy:OnUpdate()
     end
 
     if ( self:IsInvalid( InvalidationTypes.LEVEL ) ) then
-        self._LevelField:SetText( self:GetTracked() )
+        local tracked = self:GetTracked()
+        if ( tracked ~= nil and type(tracked) == 'string' ) then
+            self._LevelField:SetText( tracked )
+        else 
+            self._LevelField:SetText( 'No Faction Tracked' )
+        end
     end
 
     if ( self:IsInvalid( InvalidationTypes.XP ) ) then
-        self._XPBar:SetValue( self:GetProgressScalar() )
-        self._Percent:SetText( '( ' .. floor( ( self:GetProgressScalar() ) * 100.0 ) .. '% )' )
-        self._Textfield:SetText( self:GetProgressText() )
+        local progressText = self:GetProgressText()
+        local progressScalar = self:GetProgressScalar()
+
+        if ( progressScalar ~= nil and type(progressScalar) == 'number' ) then
+            self._XPBar:SetValue( progressScalar )
+            self._Percent:SetText( '( ' .. floor( progressScalar * 100.0 ) .. '% )' )
+        end
+
+        if ( progressText ~= nil and type(progressText) == 'string' ) then
+            self._Textfield:SetText( self:GetProgressText() )
+        end
     end
 
     if ( self._Mode == Modes.EXPERIENCE ) then
@@ -354,7 +367,9 @@ function Expy:GetTracked()
         return 'Lv ' .. self._Level
     elseif ( self._Mode == Modes.REPUTATION ) then
         local name, standing, _, _, _ = GetWatchedFactionInfo()
-        return name .. ' (' .. _G[ 'FACTION_STANDING_LABEL' .. standing ] .. ')'
+        if ( name ~= nil and standing ~= nil ) then
+            return name .. ' (' .. _G[ 'FACTION_STANDING_LABEL' .. standing ] .. ')'
+        end
     end
 
     return nil
@@ -365,7 +380,9 @@ function Expy:GetProgressScalar()
         return self._CurrentXP / self._MaxXP
     elseif ( self._Mode == Modes.REPUTATION ) then
         local _, _, min, max, value = GetWatchedFactionInfo()
-        return (value - min) / (max - min)
+        if ( min ~= nil and max ~= nil and value ~= nil ) then
+            return (value - min) / (max - min)
+        end
     end
 
     return nil
@@ -376,7 +393,9 @@ function Expy:GetProgressText()
         return  self._CurrentXP .. ' / ' .. self._MaxXP
     elseif ( self._Mode == Modes.REPUTATION ) then
         local _, _, min, max, value = GetWatchedFactionInfo()
-        return (value - min) .. ' / ' .. (max - min)
+        if ( min ~= nil and max ~= nil and value ~= nil ) then
+            return (value - min) .. ' / ' .. (max - min)
+        end
     end
 
     return nil
