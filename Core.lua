@@ -12,12 +12,13 @@ local floor     = math.floor
 ---
 local LEVEL_TABLE = 
 {
+    60,
     70,
     85,
     90,
     100,
     110,
-    110, -- #TODO #Sammy update this when xp gain is enabled
+    120,
 }
 local MAX_LEVEL     = LEVEL_TABLE[ GetExpansionLevel() ]
 local FRAME_HEIGHT  = 8
@@ -43,6 +44,9 @@ local Modes =
     REPUTATION = 2,
 }
 
+local AddonName = ...
+local AddonTitle = select(2, GetAddOnInfo(AddonName))
+
 ---
 -- Addon
 ---
@@ -59,23 +63,77 @@ Expy._RestedXP      = 0
 Expy._Mode          = Modes.EXPERIENCE
 Expy._UpdatePending = false
 
+local LibConfigDialog = LibStub( 'AceConfigDialog-3.0' )
+local LibSmooth       = LibStub( 'LibSmoothStatusBar-1.0' )
+local LibSM           = LibStub( 'LibSharedMedia-3.0' )
+local LibDB           = LibStub( 'AceDB-3.0' )
 
-local LibSmooth = LibStub( 'LibSmoothStatusBar-1.0' )
+local options = {
+    name      = AddonName,
+    desc      = 'Options for Expy',
+    descStyle = 'inline',
+    handler   = Expy,
+    type      = 'group',
+    args = {
+        texture = {
+            name          = 'Texture',
+            type          = 'select',
+            dialogControl = 'LSM30_Statusbar',
+            values        = LibSM:HashTable( 'statusbar' ),
+            get           = function() return Expy._db.texture end,
+            set           = function(self, key) Expy:SetTexture( key ) end,
+        },
+        font = {
+            name          = 'Font',
+            type          = 'select',
+            dialogControl = 'LSM30_Font',
+            values        = LibSM:HashTable( 'font' ),
+            get           = function() return Expy._db.font end,
+            set           = function(self, key) Expy:SetFont( key ) end,
+        },
+    },
+}
+
+local OptionsTable = LibStub( 'AceConfig-3.0' ):RegisterOptionsTable( 'Expy', options, {'expy'} )
+
+local defaults = {
+    profile = {
+        texture = LibSM:GetDefault( 'statusbar' ),
+        font = LibSM:GetDefault( 'font' ),
+    }
+}
 
 ---
 -- Called when the addon is initialized
 --
 function Expy:OnInitialize()
-    self:Print( '[[ OnInitialize ]]' )
+    self._db = LibDB:New( AddonName .. 'DB', defaults ) 
+    LibConfigDialog:AddToBlizOptions( AddonName, AddonTitle )
+end
+
+function Expy:SetTexture( new_texture )
+    self._db.texture = new_texture
+
+    local statusbar = LibSM:Fetch( 'statusbar', new_texture )
+
+    self._RestBar:SetStatusBarTexture( statusbar )
+    self._XPBar:SetStatusBarTexture( statusbar )
+end
+
+function Expy:SetFont( new_font )
+    self._db.font = new_font
+
+    local font = LibSM:Fetch( 'font', new_font )
+
+    self._Textfield:SetFont( font, 10, nil )
+    self._LevelField:SetFont( font, 16, nil )
+    self._Percent:SetFont( font, 10, nil )
 end
 
 ---
 -- Called when this addon is enabled
 --
 function Expy:OnEnable()
-    self:Print( '[[ OnEnable ]]' )
-
-    self:RegisterChatCommand( 'expy',            'HandleSlashCommand'     )
     self:RegisterEvent( 'DISABLE_XP_GAIN',       'HandleXPDisabled'       )
     self:RegisterEvent( 'ENABLE_XP_GAIN',        'HandleXPEnabled'        )
     self:RegisterEvent( 'PLAYER_XP_UPDATE',      'HandleXPUpdate'         )
@@ -97,6 +155,9 @@ end
 -- Set up the frame!
 --
 function Expy:InitializeFrame()
+    local statusbar = LibSM:Fetch( 'statusbar', self._db.texture or LibSM:GetDefault( 'statusbar' ) )
+    local font      = LibSM:Fetch( 'font', self._db.font or LibSM:GetDefault( 'font' ) )
+
     self._Frame = CreateFrame( 'Frame', 'Expy', UIParent )
     self._Frame._Parent = self
 
@@ -109,13 +170,13 @@ function Expy:InitializeFrame()
     self._Frame:SetHeight( FRAME_HEIGHT )
 
     self._Frame:SetBackdrop( {
-        bgFile = [[Interface\AddOns\Expy\Art\statusbar]],
+        bgFile = statusbar,
     } )
 
     self._Frame:SetBackdropColor( 0.25, 0.25, 0.25, 0.75 )
 
     self._RestBar = CreateFrame( 'StatusBar', 'Expy.RestBar', self._Frame ) 
-    self._RestBar:SetStatusBarTexture( [[Interface\AddOns\Expy\Art\statusbar]] )
+    self._RestBar:SetStatusBarTexture( statusbar )
     self._RestBar:SetStatusBarColor( 0.12, 0.69, 0.06, 0.75 )
     self._RestBar:SetPoint( 'TOPLEFT', self._Frame, 'TOPLEFT', -1, -1 )
     self._RestBar:SetPoint( 'BOTTOMRIGHT', self._Frame, 'BOTTOMRIGHT', 1, 1 )
@@ -124,7 +185,7 @@ function Expy:InitializeFrame()
     LibSmooth:SmoothBar( self._RestBar )
 
     self._XPBar = CreateFrame( 'StatusBar', 'Expy.XPBar', self._Frame )
-    self._XPBar:SetStatusBarTexture( [[Interface\AddOns\Expy\Art\statusbar]] )
+    self._XPBar:SetStatusBarTexture( statusbar )
     self._XPBar:SetStatusBarColor( 0.98, 0.84, 0.09, 1.0 )
     self._XPBar:SetPoint( 'TOPLEFT', self._Frame, 'TOPLEFT', -1, -1 )
     self._XPBar:SetPoint( 'BOTTOMRIGHT', self._Frame, 'BOTTOMRIGHT', 1, 1 )
@@ -136,26 +197,25 @@ function Expy:InitializeFrame()
     self._Textfield:SetShadowOffset( 1, -1 )
     self._Textfield:SetTextColor( 1, 1, 1, 1 )
     self._Textfield:SetPoint( 'BOTTOMLEFT', self._Frame, 'TOPLEFT', 2, 2 )
-    self._Textfield:SetFont( STANDARD_TEXT_FONT, 10, nil )
+    self._Textfield:SetFont( font, 10, nil )
 
     self._LevelField = self._Frame:CreateFontString( 'Expy.Level', 'OVERLAY' )
     self._LevelField:SetShadowOffset( 1, -1 )
     self._LevelField:SetTextColor( 1, 1, 1, 1 )
     self._LevelField:SetPoint( 'BOTTOMLEFT', self._Textfield, 'TOPLEFT', 0, 0 )
-    self._LevelField:SetFont( STANDARD_TEXT_FONT, 16, nil )
+    self._LevelField:SetFont( font, 16, nil )
 
     self._Percent = self._Frame:CreateFontString( 'Expy.Percent', 'OVERLAY' )
     self._Percent:SetShadowOffset( 1, -1 )
     self._Percent:SetTextColor( 1, 1, 1, 1 )
     self._Percent:SetPoint( 'LEFT', self._Textfield, 'RIGHT', 2, 0 )
-    self._Percent:SetFont( STANDARD_TEXT_FONT, 10, nil )
+    self._Percent:SetFont( font, 10, nil )
 end
 
 ---
 -- Called when this addon is disabled
 --
 function Expy:OnDisable()
-    self:Print( '[[ OnDisable ]]' )
     self._Frame:Hide()
 end
 
@@ -165,7 +225,6 @@ end
 -- @param anything the user typed with this slash command
 --
 function Expy:HandleSlashCommand( _ )
-    self:Print( '[[ HandleSlashCommand ]]' )
 end
 
 --- 
@@ -222,7 +281,7 @@ function Expy:OnUpdate()
             end
         end
     else
-        self._RestBar:SetValue(0.0)
+        self._RestBar:SetValue( 0.0 )
     end
 
     -- revert all these to default
