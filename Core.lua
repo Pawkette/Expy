@@ -266,6 +266,10 @@ function Expy:OnUpdate()
         if ( progressText ~= nil and type(progressText) == 'string' ) then
             self._Textfield:SetText( self:GetProgressText() )
         end
+
+        if ( self._RestedXP == nil or self._RestedXP == 0 ) then
+            self._RestBar:SetValue( 0.0 )
+        end
     end
 
     if ( self._Mode == Modes.EXPERIENCE ) then
