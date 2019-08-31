@@ -3,6 +3,7 @@
 ## Notes: Simple XP bar replacement
 ## Author: Pawkette
 ## Version: 0.1
+## SavedVariables: ExpyDB
 
 Embeds.xml
 Core.lua
