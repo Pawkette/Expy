@@ -12,7 +12,6 @@ local floor     = math.floor
 ---
 local LEVEL_TABLE = 
 {
-    60,
     70,
     85,
     90,
@@ -20,8 +19,17 @@ local LEVEL_TABLE =
     110,
     120,
 }
-local MAX_LEVEL     = LEVEL_TABLE[ GetExpansionLevel() ]
-local FRAME_HEIGHT  = 8
+
+local function GetMaxLevel()
+    local xpac_level = GetExpansionLevel()
+    if ( xpac_level > 0 ) then
+        return LEVEL_TABLE[ xpac_level ]
+    else
+        return 60
+    end
+end
+
+local FRAME_HEIGHT = 8
 
 local InvalidationTypes = 
 {
@@ -44,8 +52,8 @@ local Modes =
     REPUTATION = 2,
 }
 
-local AddonName = ...
-local AddonTitle = select(2, GetAddOnInfo(AddonName))
+local ADDON_NAME = ...
+local ADDON_TITLE = select( 2, GetAddOnInfo( ADDON_NAME ) )
 
 ---
 -- Addon
@@ -69,7 +77,7 @@ local LibSM           = LibStub( 'LibSharedMedia-3.0' )
 local LibDB           = LibStub( 'AceDB-3.0' )
 
 local options = {
-    name      = AddonName,
+    name      = ADDON_NAME,
     desc      = 'Options for Expy',
     descStyle = 'inline',
     handler   = Expy,
@@ -107,8 +115,8 @@ function Expy:OnInitialize()
         }
     }
 
-    self.db = LibDB:New( AddonName .. 'DB', defaults, true ) 
-    LibConfigDialog:AddToBlizOptions( AddonName, AddonTitle )
+    self.db = LibDB:New( ADDON_NAME .. 'DB', defaults, true ) 
+    LibConfigDialog:AddToBlizOptions( ADDON_NAME, ADDON_TITLE )
 end
 
 function Expy:SetTexture( new_texture )
@@ -388,7 +396,7 @@ function Expy:HandleLevelUp( _, level )
     self.m_Level = level
     self.m_MaxXP = UnitXPMax( 'player' )
 
-    if ( self.m_Level == MAX_LEVEL ) then
+    if ( self.m_Level == GetMaxLevel() ) then
         self:SetMode( Modes.REPUTATION )
     end
     self:Invalidate( InvalidationTypes.LEVEL )
