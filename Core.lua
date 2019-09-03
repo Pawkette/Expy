@@ -263,10 +263,7 @@ end
 -- This is where we actually determine if we need to update the UI
 --
 function Expy:OnUpdate()
-    if ( not self:IsInvalid() ) then
-        return
-    end
-
+    
     if ( self:IsInvalid( InvalidationTypes.LEVEL ) ) then
         local tracked = self:GetTracked()
         if ( tracked ~= nil and type( tracked ) == 'string' ) then
@@ -355,10 +352,14 @@ end
 -- @param type the type to check
 function Expy:IsInvalid( type )
     if ( not type ) then 
-        return #self.m_Invalid ~= 0
+        local count = 0
+        for _,_ in pairs( self.m_Invalid ) do 
+            count = count + 1 
+        end
+        return count ~= 0
     end
 
-    return self.m_Invalid[ type ] == true
+    return self.m_Invalid[ type ] ~= nil
 end
 
 --
@@ -435,7 +436,7 @@ end
 ---
 -- Just refresh everything
 --
-function Expy:HandleReputationUpdate(...)
+function Expy:HandleReputationUpdate( ... )
     self:Invalidate( InvalidationTypes.LEVEL )
     self:Invalidate( InvalidationTypes.XP )
 end
