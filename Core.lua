@@ -2,10 +2,7 @@
 -- Expy is a simple XP bar replacement addon inspired by more minimal games.
 -- author: Sammy James (aka Pawkette)
 --
-local insert    = table.insert
-local remove    = table.remove
-local sort      = table.sort
-local floor     = math.floor
+local floor = math.floor
 
 ---
 -- Constants
@@ -28,8 +25,6 @@ local function GetMaxLevel()
         return 60
     end
 end
-
-local FRAME_HEIGHT = 8
 
 local InvalidationTypes = 
 {
@@ -84,21 +79,33 @@ local options = {
     type      = 'group',
     args = {
         texture = {
+            order         = 0,
             name          = 'Texture',
             type          = 'select',
             dialogControl = 'LSM30_Statusbar',
             values        = LibSM:HashTable( 'statusbar' ),
             get           = function() return Expy.db.global.texture end,
-            set           = function(self, key) Expy:SetTexture( key ) end,
+            set           = function( self, key ) Expy:SetTexture( key ) end,
         },
         font = {
+            order         = 1,
             name          = 'Font',
             type          = 'select',
             dialogControl = 'LSM30_Font',
             values        = LibSM:HashTable( 'font' ),
             get           = function() return Expy.db.global.font end,
-            set           = function(self, key) Expy:SetFont( key ) end,
+            set           = function( self, key ) Expy:SetFont( key ) end,
         },
+        height = {
+            order = 2,
+            name  = 'Height',
+            type  = 'range',
+            min   = 4,
+            max   = 36,
+            step  = 1,
+            get   = function() return Expy.db.global.height end,
+            set   = function( self, key ) Expy:SetHeight( key ) end,
+        }
     },
 }
 
@@ -111,7 +118,8 @@ function Expy:OnInitialize()
     local defaults = {
         profile = {
             texture = LibSM:GetDefault( 'statusbar' ),
-            font = LibSM:GetDefault( 'font' ),
+            font    = LibSM:GetDefault( 'font' ),
+            height  = 8,
         }
     }
 
@@ -136,6 +144,12 @@ function Expy:SetFont( new_font )
     self.m_Textfield:SetFont( font, 10, nil )
     self.m_LevelField:SetFont( font, 16, nil )
     self.m_Percent:SetFont( font, 10, nil )
+end
+
+function Expy:SetHeight( new_height )
+    self.db.global.height = new_height
+
+    self.m_Frame:SetHeight( new_height )
 end
 
 ---
@@ -175,7 +189,7 @@ function Expy:InitializeFrame()
     self.m_Frame:ClearAllPoints()
     self.m_Frame:SetPoint( 'BOTTOM', UIParent, 'BOTTOM', 0, 0 )
     self.m_Frame:SetWidth( UIParent:GetWidth() )
-    self.m_Frame:SetHeight( FRAME_HEIGHT )
+    self.m_Frame:SetHeight( self.db.global.height or 8 )
 
     self.m_Frame:SetBackdrop( {
         bgFile = statusbar,
@@ -308,7 +322,7 @@ end
 -- bind to 'OnUpdate' and then refresh the ui
 --
 function Expy:RequestUpdate()
-    if ( not self._UpdatePending ) then
+    if ( not self.m_UpdatePending ) then
         self.m_Frame:SetScript( 'OnUpdate', function( self, _ ) self.m_Parent:OnUpdate() end )
         self.m_UpdatePending = true
     end
@@ -322,12 +336,12 @@ function Expy:Invalidate( types )
     if ( type( types ) == 'table' ) then
         for i=1,#types,1 do 
             if ( not self:IsInvalid( types[ i ] ) ) then
-                insert( self.m_Invalid, types[ i ] )
+                self.m_Invalid[ types[ i ] ] = true
             end
         end
     elseif ( type( types ) == 'number' ) then
         if ( not self:IsInvalid( types ) ) then
-            insert( self.m_Invalid, types )
+            self.m_Invalid[ types ] = true
         end
     end
 
@@ -344,13 +358,7 @@ function Expy:IsInvalid( type )
         return #self.m_Invalid ~= 0
     end
 
-    for _,v in pairs( self.m_Invalid ) do
-        if ( v == type ) then
-            return true
-        end
-    end
-
-    return false
+    return self.m_Invalid[ type ] == true
 end
 
 --
