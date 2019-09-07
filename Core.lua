@@ -3,22 +3,26 @@
 -- author: Sammy James (aka Pawkette)
 --
 local floor = math.floor
+local LibStub = LibStub or function( _ ) return {} end
 
 ---
 -- Constants
 ---
-local LEVEL_TABLE = 
-{
-    70,
-    85,
-    90,
-    100,
-    110,
-    120,
+local LEVEL_TABLE = {
+    70, -- tbc
+    80, -- wotlk
+    85, -- cata
+    90, -- mop
+    100, -- wod
+    110, -- legion
+    120, -- bfa
 }
 
+---
+-- Get the max level for the game
+--
 local function GetMaxLevel()
-    local xpac_level = GetExpansionLevel()
+    local xpac_level = GetExpansionLevel() or 0
     if ( xpac_level > 0 ) then
         return LEVEL_TABLE[ xpac_level ]
     else
@@ -26,8 +30,7 @@ local function GetMaxLevel()
     end
 end
 
-local InvalidationTypes = 
-{
+local InvalidationTypes = {
     XP         = 1,
     REST_XP    = 2,
     REST_STATE = 3,
@@ -35,36 +38,34 @@ local InvalidationTypes =
     MODE       = 5,
 }
 
-local PlayerStates = 
-{
+local PlayerStates = {
     RESTING = 1,
     NORMAL  = 2,
 }
 
-local Modes =
-{
+local Modes = {
     EXPERIENCE = 1,
     REPUTATION = 2,
 }
 
-local ADDON_NAME = ...
+local ADDON_NAME  = ...
 local ADDON_TITLE = select( 2, GetAddOnInfo( ADDON_NAME ) )
 
 ---
 -- Addon
 ---
-local Expy           = LibStub( 'AceAddon-3.0' ):NewAddon( 'Expy', 'AceConsole-3.0', 'AceEvent-3.0' )
-Expy.m_CurrentXP     = 0
-Expy.m_MaxXP         = 0
-Expy.m_DeltaXP       = 0
-Expy.m_Level         = 0
-Expy.m_XPEnabled     = true
-Expy.m_Invalid       = {}
-Expy.m_Frame         = nil
-Expy.m_Resting       = PlayerStates.NORMAL
-Expy.m_RestedXP      = 0
-Expy.m_Mode          = Modes.EXPERIENCE
-Expy.m_UpdatePending = false
+local Expy            = LibStub( 'AceAddon-3.0' ):NewAddon( 'Expy', 'AceConsole-3.0', 'AceEvent-3.0' )
+Expy.m_CurrentXP      = 0
+Expy.m_MaxXP          = 0
+Expy.m_DeltaXP        = 0
+Expy.m_Level          = 0
+Expy.m_XPEnabled      = true
+Expy.m_Invalid        = {}
+Expy.m_Frame          = nil
+Expy.m_Resting        = PlayerStates.NORMAL
+Expy.m_RestedXP       = 0
+Expy.m_Mode           = Modes.EXPERIENCE
+Expy.m_UpdatePending  = false
 
 local LibConfigDialog = LibStub( 'AceConfigDialog-3.0' )
 local LibSmooth       = LibStub( 'LibSmoothStatusBar-1.0' )
@@ -85,7 +86,7 @@ local options = {
             dialogControl = 'LSM30_Statusbar',
             values        = LibSM:HashTable( 'statusbar' ),
             get           = function() return Expy.db.global.texture end,
-            set           = function( self, key ) Expy:SetTexture( key ) end,
+            set           = function( _, key ) Expy:SetTexture( key ) end,
         },
         font = {
             order         = 1,
@@ -94,7 +95,7 @@ local options = {
             dialogControl = 'LSM30_Font',
             values        = LibSM:HashTable( 'font' ),
             get           = function() return Expy.db.global.font end,
-            set           = function( self, key ) Expy:SetFont( key ) end,
+            set           = function( _, key ) Expy:SetFont( key ) end,
         },
         height = {
             order = 2,
@@ -104,12 +105,12 @@ local options = {
             max   = 36,
             step  = 1,
             get   = function() return Expy.db.global.height end,
-            set   = function( self, key ) Expy:SetHeight( key ) end,
+            set   = function( _, key ) Expy:SetHeight( key ) end,
         }
     },
 }
 
-local OptionsTable = LibStub( 'AceConfig-3.0' ):RegisterOptionsTable( 'Expy', options, {'expy'} )
+local OptionsTable = LibStub( 'AceConfig-3.0' ):RegisterOptionsTable( 'Expy', options, {'expy' } )
 
 ---
 -- Called when the addon is initialized
@@ -123,7 +124,7 @@ function Expy:OnInitialize()
         }
     }
 
-    self.db = LibDB:New( ADDON_NAME .. 'DB', defaults, true ) 
+    self.db = LibDB:New( ADDON_NAME .. 'DB', defaults, true )
     LibConfigDialog:AddToBlizOptions( ADDON_NAME, ADDON_TITLE )
 end
 
@@ -197,7 +198,7 @@ function Expy:InitializeFrame()
 
     self.m_Frame:SetBackdropColor( 0.25, 0.25, 0.25, 0.75 )
 
-    self.m_RestBar = CreateFrame( 'StatusBar', 'Expy.RestBar', self.m_Frame ) 
+    self.m_RestBar = CreateFrame( 'StatusBar', 'Expy.RestBar', self.m_Frame )
     self.m_RestBar:SetStatusBarTexture( statusbar )
     self.m_RestBar:SetStatusBarColor( 0.12, 0.69, 0.06, 0.75 )
     self.m_RestBar:SetPoint( 'TOPLEFT', self.m_Frame, 'TOPLEFT', -1, -1 )
@@ -242,14 +243,6 @@ function Expy:OnDisable()
 end
 
 ---
--- Called when a user types the slash command /expy
--- 
--- @param anything the user typed with this slash command
---
-function Expy:HandleSlashCommand( _ )
-end
-
---- 
 -- called to switch between xp and rep mode
 --
 function Expy:SetMode( new_mode )
@@ -263,12 +256,11 @@ end
 -- This is where we actually determine if we need to update the UI
 --
 function Expy:OnUpdate()
-    
     if ( self:IsInvalid( InvalidationTypes.LEVEL ) ) then
         local tracked = self:GetTracked()
         if ( tracked ~= nil and type( tracked ) == 'string' ) then
             self.m_LevelField:SetText( tracked )
-        else 
+        else
             self.m_LevelField:SetText( 'No Faction Tracked' )
         end
     end
@@ -297,7 +289,7 @@ function Expy:OnUpdate()
         if ( self:IsInvalid( InvalidationTypes.REST_XP ) ) then
             self.m_RestBar:SetValue( ( self.m_CurrentXP + ( self.m_RestedXP or 0 ) ) / self.m_MaxXP )
         end
-        
+
         if ( self:IsInvalid( InvalidationTypes.REST_STATE ) ) then
             if ( self.m_Resting == PlayerStates.RESTING ) then
                 self.m_RestBar:SetStatusBarColor( 0.09, 0.47, 0.98, 0.75 )
@@ -320,18 +312,18 @@ end
 --
 function Expy:RequestUpdate()
     if ( not self.m_UpdatePending ) then
-        self.m_Frame:SetScript( 'OnUpdate', function( self, _ ) self.m_Parent:OnUpdate() end )
+        self.m_Frame:SetScript( 'OnUpdate', function( frame, _ ) frame.m_Parent:OnUpdate() end )
         self.m_UpdatePending = true
     end
 end
 
 ---
 -- Invalidate a type or types
+-- @param types a number or table of numbers to invalidat
 --
--- @param types a number or table of numbers to invalidate
 function Expy:Invalidate( types )
     if ( type( types ) == 'table' ) then
-        for i=1,#types,1 do 
+        for i=1,#types,1 do
             if ( not self:IsInvalid( types[ i ] ) ) then
                 self.m_Invalid[ types[ i ] ] = true
             end
@@ -348,13 +340,13 @@ end
 
 ---
 -- Determine if something is invalid
--- 
 -- @param type the type to check
+--
 function Expy:IsInvalid( type )
-    if ( not type ) then 
+    if ( not type ) then
         local count = 0
-        for _,_ in pairs( self.m_Invalid ) do 
-            count = count + 1 
+        for _,_ in pairs( self.m_Invalid ) do
+            count = count + 1
         end
         return count ~= 0
     end
@@ -398,7 +390,6 @@ end
 
 ---
 -- Called when the player levels up
--- 
 -- @param level the player's level
 --
 function Expy:HandleLevelUp( _, level )
@@ -413,15 +404,15 @@ end
 
 ---
 -- Called when the player's resting state changes
--- 
+--
 function Expy:HandleRestingUpdate()
     if ( IsResting() ) then
         self.m_Resting = PlayerStates.RESTING
     else
-        self.m_Resting = PlayerStates.NORMAL 
+        self.m_Resting = PlayerStates.NORMAL
     end
 
-    self:Invalidate( InvalidationTypes.REST_STATE ) 
+    self:Invalidate( InvalidationTypes.REST_STATE )
 end
 
 ---
@@ -436,7 +427,7 @@ end
 ---
 -- Just refresh everything
 --
-function Expy:HandleReputationUpdate( ... )
+function Expy:HandleReputationUpdate( _ )
     self:Invalidate( InvalidationTypes.LEVEL )
     self:Invalidate( InvalidationTypes.XP )
 end
@@ -444,7 +435,7 @@ end
 ---
 -- getters
 --
-function Expy:GetTracked() 
+function Expy:GetTracked()
     if ( self.m_Mode == Modes.EXPERIENCE ) then
         return 'Lv ' .. self.m_Level
     elseif ( self.m_Mode == Modes.REPUTATION ) then
@@ -482,4 +473,3 @@ function Expy:GetProgressText()
 
     return nil
 end
-
