@@ -3,7 +3,6 @@
 -- author: Sammy James (aka Pawkette)
 --
 local floor               = math.floor
-local BreakUpLargeNumbers = BreakUpLargeNumbers
 
 ---
 -- Constants
@@ -17,39 +16,6 @@ local LEVEL_TABLE = {
     110, -- legion
     120, -- bfa
 }
-
----
--- Get the max level for the game
---
-local function GetMaxLevel()
-    local xpac_level = GetExpansionLevel() or 0
-    if ( xpac_level > 0 ) then
-        return LEVEL_TABLE[ xpac_level ]
-    else
-        return 60
-    end
-end
-
-local function PrettyNumber( value )
-    -- seems like BreakUpLargeNumbers doesn't work?
-    local str_value = tostring( value )
-    if ( str_value:len() <= 3 ) then
-        return value
-    else
-        local result = ""
-        local idx    = 0
-        for i = #str_value, 1, -1 do
-            result = str_value:sub( i, i ) .. result
-            idx    = idx + 1
-            if ( idx == 3 ) then
-                result = ',' .. result
-                idx = 0
-            end
-        end
-
-        return result
-    end
-end
 
 local InvalidationTypes = {
     XP         = 1,
@@ -68,6 +34,32 @@ local Modes = {
     EXPERIENCE = 1,
     REPUTATION = 2,
 }
+
+---
+-- Get the max level for the game
+--
+local function GetMaxLevel()
+    local xpac_level = GetExpansionLevel() or 0
+    if ( xpac_level > 0 ) then
+        return LEVEL_TABLE[ xpac_level ]
+    else
+        return 60
+    end
+end
+
+local function PrettyNumber( value )
+    -- seems like BreakUpLargeNumbers doesn't work?
+    local str_value = tostring( value )
+    local value_len = str_value:len()
+
+    if ( value_len <= 3 ) then
+        return str_value
+    else
+        -- credit http://richard.warburton.it
+        local left, num, right = string.match( value,'^([^%d]*%d)(%d*)(.-)$' )
+        return left .. ( num:reverse():gsub( '(%d%d%d)', '%1,' ):reverse() ) .. right
+    end
+end
 
 local ADDON_NAME  = ...
 local ADDON_TITLE = select( 2, GetAddOnInfo( ADDON_NAME ) )
