@@ -2,8 +2,8 @@
 -- Expy is a simple XP bar replacement addon inspired by more minimal games.
 -- author: Sammy James (aka Pawkette)
 --
-local floor = math.floor
-local LibStub = LibStub or function( _ ) return {} end
+local floor               = math.floor
+local BreakUpLargeNumbers = BreakUpLargeNumbers
 
 ---
 -- Constants
@@ -27,6 +27,27 @@ local function GetMaxLevel()
         return LEVEL_TABLE[ xpac_level ]
     else
         return 60
+    end
+end
+
+local function PrettyNumber( value )
+    -- seems like BreakUpLargeNumbers doesn't work?
+    local str_value = tostring( value )
+    if ( str_value:len() <= 3 ) then
+        return value
+    else
+        local result = ""
+        local idx    = 0
+        for i = #str_value, 1, -1 do
+            result = str_value:sub( i, i ) .. result
+            idx    = idx + 1
+            if ( idx == 3 ) then
+                result = ',' .. result
+                idx = 0
+            end
+        end
+
+        return result
     end
 end
 
@@ -463,11 +484,11 @@ end
 
 function Expy:GetProgressText()
     if ( self.m_Mode == Modes.EXPERIENCE ) then
-        return  self.m_CurrentXP .. ' / ' .. self.m_MaxXP
+        return  PrettyNumber( self.m_CurrentXP ) .. ' / ' .. PrettyNumber( self.m_MaxXP )
     elseif ( self.m_Mode == Modes.REPUTATION ) then
         local _, _, min, max, value = GetWatchedFactionInfo()
         if ( min ~= nil and max ~= nil and value ~= nil ) then
-            return (value - min) .. ' / ' .. (max - min)
+            return PrettyNumber( value - min ) .. ' / ' .. PrettyNumber( max - min )
         end
     end
 
