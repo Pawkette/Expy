@@ -265,7 +265,7 @@ end
 -- @return r,g,b,a color comonents for a state
 --
 function Expy:GetColor( color_idx )
-    if ( type( self.db.global.colors ) ~= 'table' ) then
+    if ( type( self.db.global.colors ) ~= 'table' or #self.db.global.colors ~= 4 ) then
         self.db.global.colors = DefaultColors
     end
 
