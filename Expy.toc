@@ -2,7 +2,7 @@
 ## Title: Expy
 ## Notes: Simple XP bar replacement
 ## Author: Pawkette
-## Version: 0.1.4
+## Version: 0.1.5
 ## SavedVariables: ExpyDB
 
 Embeds.xml

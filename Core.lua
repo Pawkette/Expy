@@ -1,8 +1,10 @@
 ---
 -- Expy is a simple XP bar replacement addon inspired by more minimal games.
--- author: Sammy James (aka Pawkette)
+-- @author: Sammy James (aka Pawkette)
+-- @copyright: MIT
 --
-local floor               = math.floor
+local floor  = math.floor
+local unpack = unpack
 
 ---
 -- Constants
@@ -17,6 +19,9 @@ local LEVEL_TABLE = {
     120, -- bfa
 }
 
+---
+-- defines which part of the ui needs update
+--
 local InvalidationTypes = {
     XP         = 1,
     REST_XP    = 2,
@@ -25,18 +30,35 @@ local InvalidationTypes = {
     MODE       = 5,
 }
 
+---
+-- used to distinguish normal or resting state
+--
 local PlayerStates = {
     RESTING = 1,
     NORMAL  = 2,
 }
 
+---
+-- used to distinguish if we're in xp or rep mode
+--
 local Modes = {
     EXPERIENCE = 1,
     REPUTATION = 2,
 }
 
 ---
+-- these define the colors the addon deals with
+--
+local Colors = {
+    XP         = 1,
+    RESTED_XP  = 2,
+    RESTING_XP = 3,
+    BACKDROP   = 4,
+}
+
+---
 -- Get the max level for the game
+-- @return the max level
 --
 local function GetMaxLevel()
     local xpac_level = GetExpansionLevel() or 0
@@ -47,6 +69,10 @@ local function GetMaxLevel()
     end
 end
 
+---
+-- add commas to a number
+-- @return a string value of the number with commas
+--
 local function PrettyNumber( value )
     -- seems like BreakUpLargeNumbers doesn't work?
     local str_value = tostring( value )
@@ -119,11 +145,49 @@ local options = {
             step  = 1,
             get   = function() return Expy.db.global.height end,
             set   = function( _, key ) Expy:SetHeight( key ) end,
+        },
+        normal_color = {
+            order    = 3,
+            name     = 'Normal Color',
+            type     = 'color',
+            hasAlpha = true,
+            get      = function() return Expy:GetColor( Colors.XP ) end,
+            set      = function( _, ... ) Expy:SetColor( Colors.XP, ... ) end,
+        },
+        rested_color = {
+            order    = 4,
+            name     = 'Rested Color',
+            type     = 'color',
+            hasAlpha = true,
+            get      = function() return Expy:GetColor( Colors.RESTED_XP ) end,
+            set      = function( _, ... ) Expy:SetColor( Colors.RESTED_XP, ... ) end,
+        },
+        resting_color = {
+            order    = 5,
+            name     = 'Resting Color',
+            type     = 'color',
+            hasAlpha = true,
+            get      = function() return Expy:GetColor( Colors.RESTING_XP ) end,
+            set      = function( _, ... ) Expy:SetColor( Colors.RESTING_XP, ... ) end,
+        },
+        backdrop_color = {
+            order    = 6,
+            name     = 'Backdrop Color',
+            type     = 'color',
+            hasAlpha = true,
+            get      = function() return Expy:GetColor( Colors.BACKDROP ) end,
+            set      = function( _, ... ) Expy:SetColor( Colors.BACKDROP, ... ) end,
         }
     },
 }
 
 local OptionsTable = LibStub( 'AceConfig-3.0' ):RegisterOptionsTable( 'Expy', options, {'expy' } )
+local DefaultColors = {
+    { 0.98, 0.84, 0.09, 1.0  }, -- normal
+    { 0.12, 0.69, 0.06, 0.75 }, -- rested
+    { 0.09, 0.47, 0.98, 0.75 }, -- resting
+    { 0.25, 0.25, 0.25, 0.75 }, -- backdrop
+}
 
 ---
 -- Called when the addon is initialized
@@ -134,6 +198,7 @@ function Expy:OnInitialize()
             texture = LibSM:GetDefault( 'statusbar' ),
             font    = LibSM:GetDefault( 'font' ),
             height  = 8,
+            colors  = DefaultColors,
         }
     }
 
@@ -141,6 +206,10 @@ function Expy:OnInitialize()
     LibConfigDialog:AddToBlizOptions( ADDON_NAME, ADDON_TITLE )
 end
 
+---
+-- Set the texture for the xp bar
+-- @param new_texture a texture path
+--
 function Expy:SetTexture( new_texture )
     self.db.global.texture = new_texture
 
@@ -150,6 +219,10 @@ function Expy:SetTexture( new_texture )
     self.m_XPBar:SetStatusBarTexture( statusbar )
 end
 
+---
+-- Set the font for the xp bar
+-- @param new_font a font
+--
 function Expy:SetFont( new_font )
     self.db.global.font = new_font
 
@@ -160,10 +233,48 @@ function Expy:SetFont( new_font )
     self.m_Percent:SetFont( font, 10, nil )
 end
 
+---
+-- Set the height for the status bar
+-- @param new_height the new height
+--
 function Expy:SetHeight( new_height )
     self.db.global.height = new_height
 
     self.m_Frame:SetHeight( new_height )
+end
+
+---
+-- Set color information
+-- @param color_idx the color to set
+-- @param r red component
+-- @param g green component
+-- @param b blue component
+-- @param a alpha component
+--
+function Expy:SetColor( color_idx, r, g, b, a )
+    self.db.global.colors[ color_idx ] = { r, g, b, a }
+
+    if ( self.m_Resting == PlayerStates.RESTING ) then
+        self.m_RestBar:SetStatusBarColor( self:GetColor( Colors.RESTING_XP ) )
+    else
+        self.m_RestBar:SetStatusBarColor( self:GetColor( Colors.RESTED_XP ) )
+    end
+
+    self.m_XPBar:SetStatusBarColor( self:GetColor( Colors.XP ) )
+    self.m_Frame:SetBackdropColor( self:GetColor( Colors.BACKDROP ) )
+end
+
+---
+-- Get the color for a state
+-- @param state the state to get a color for
+-- @return r,g,b,a color comonents for a state
+--
+function Expy:GetColor( color_idx )
+    if ( type( self.db.global.colors ) ~= 'table' ) then
+        self.db.global.colors = DefaultColors
+    end
+
+    return unpack( self.db.global.colors[ color_idx ] )
 end
 
 ---
@@ -209,11 +320,11 @@ function Expy:InitializeFrame()
         bgFile = statusbar,
     } )
 
-    self.m_Frame:SetBackdropColor( 0.25, 0.25, 0.25, 0.75 )
+    self.m_Frame:SetBackdropColor( self:GetColor( Colors.BACKDROP ) )
 
     self.m_RestBar = CreateFrame( 'StatusBar', 'Expy.RestBar', self.m_Frame )
     self.m_RestBar:SetStatusBarTexture( statusbar )
-    self.m_RestBar:SetStatusBarColor( 0.12, 0.69, 0.06, 0.75 )
+    self.m_RestBar:SetStatusBarColor( self:GetColor( Colors.RESTED_XP ) )
     self.m_RestBar:SetPoint( 'TOPLEFT', self.m_Frame, 'TOPLEFT', -1, -1 )
     self.m_RestBar:SetPoint( 'BOTTOMRIGHT', self.m_Frame, 'BOTTOMRIGHT', 1, 1 )
     self.m_RestBar:SetMinMaxValues( 0.0, 1.0 )
@@ -222,7 +333,7 @@ function Expy:InitializeFrame()
 
     self.m_XPBar = CreateFrame( 'StatusBar', 'Expy.XPBar', self.m_Frame )
     self.m_XPBar:SetStatusBarTexture( statusbar )
-    self.m_XPBar:SetStatusBarColor( 0.98, 0.84, 0.09, 1.0 )
+    self.m_XPBar:SetStatusBarColor( self:GetColor( Colors.XP ) )
     self.m_XPBar:SetPoint( 'TOPLEFT', self.m_Frame, 'TOPLEFT', -1, -1 )
     self.m_XPBar:SetPoint( 'BOTTOMRIGHT', self.m_Frame, 'BOTTOMRIGHT', 1, 1 )
     self.m_XPBar:SetMinMaxValues( 0.0, 1.0 )
@@ -257,6 +368,7 @@ end
 
 ---
 -- called to switch between xp and rep mode
+-- @param new_mode the mode to be in (Resting or Normal)
 --
 function Expy:SetMode( new_mode )
     if (new_mode ~= self.m_Mode) then
@@ -305,9 +417,9 @@ function Expy:OnUpdate()
 
         if ( self:IsInvalid( InvalidationTypes.REST_STATE ) ) then
             if ( self.m_Resting == PlayerStates.RESTING ) then
-                self.m_RestBar:SetStatusBarColor( 0.09, 0.47, 0.98, 0.75 )
+                self.m_RestBar:SetStatusBarColor( self:GetColor( Colors.RESTING_XP ) )
             else
-                self.m_RestBar:SetStatusBarColor( 0.12, 0.69, 0.06, 0.75 )
+                self.m_RestBar:SetStatusBarColor( self:GetColor( Colors.RESTED_XP ) )
             end
         end
     else
@@ -354,6 +466,7 @@ end
 ---
 -- Determine if something is invalid
 -- @param type the type to check
+-- @return if the supplied type is invalid
 --
 function Expy:IsInvalid( type )
     if ( not type ) then
@@ -366,10 +479,6 @@ function Expy:IsInvalid( type )
 
     return self.m_Invalid[ type ] ~= nil
 end
-
---
--- Event handling
---
 
 ---
 -- Called when the player disables XP
@@ -446,7 +555,8 @@ function Expy:HandleReputationUpdate( _ )
 end
 
 ---
--- getters
+-- Get tracked information (either level or faction)
+-- @return a string for what is currently tracked
 --
 function Expy:GetTracked()
     if ( self.m_Mode == Modes.EXPERIENCE ) then
@@ -461,6 +571,10 @@ function Expy:GetTracked()
     return nil
 end
 
+---
+-- Get a scalar for the progress bar
+-- @return a number from 0..1
+--
 function Expy:GetProgressScalar()
     if ( self.m_Mode == Modes.EXPERIENCE ) then
         return self.m_CurrentXP / self.m_MaxXP
@@ -474,6 +588,10 @@ function Expy:GetProgressScalar()
     return nil
 end
 
+---
+-- Get progress text
+-- @return a nicely formatted string showing x/y
+--
 function Expy:GetProgressText()
     if ( self.m_Mode == Modes.EXPERIENCE ) then
         return  PrettyNumber( self.m_CurrentXP ) .. ' / ' .. PrettyNumber( self.m_MaxXP )
