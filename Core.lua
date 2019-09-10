@@ -254,12 +254,7 @@ end
 function Expy:SetColor( color_idx, r, g, b, a )
     self.db.global.colors[ color_idx ] = { r, g, b, a }
 
-    if ( self.m_Resting == PlayerStates.RESTING ) then
-        self.m_RestBar:SetStatusBarColor( self:GetColor( Colors.RESTING_XP ) )
-    else
-        self.m_RestBar:SetStatusBarColor( self:GetColor( Colors.RESTED_XP ) )
-    end
-
+    self:Invalidate( InvalidationTypes.REST_STATE ) -- slight cheese to avoid duplicate logic
     self.m_XPBar:SetStatusBarColor( self:GetColor( Colors.XP ) )
     self.m_Frame:SetBackdropColor( self:GetColor( Colors.BACKDROP ) )
 end
@@ -416,11 +411,8 @@ function Expy:OnUpdate()
         end
 
         if ( self:IsInvalid( InvalidationTypes.REST_STATE ) ) then
-            if ( self.m_Resting == PlayerStates.RESTING ) then
-                self.m_RestBar:SetStatusBarColor( self:GetColor( Colors.RESTING_XP ) )
-            else
-                self.m_RestBar:SetStatusBarColor( self:GetColor( Colors.RESTED_XP ) )
-            end
+            self.m_RestBar:SetStatusBarColor(
+                self:GetColor( self.m_Resting == PlayerStates.RESTING and Colors.RESTING_XP or Colors.RESTED_XP ) )
         end
     else
         self.m_RestBar:SetValue( 0.0 )
