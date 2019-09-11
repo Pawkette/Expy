@@ -146,8 +146,18 @@ local options = {
             get   = function() return Expy.db.global.height end,
             set   = function( _, key ) Expy:SetHeight( key ) end,
         },
+        bottom = {
+            order = 3,
+            name  = 'Bottom Padding',
+            type  = 'range',
+            min   = 0,
+            max   = 128,
+            step  = 1,
+            get   = function() return Expy:GetBottomPadding() end,
+            set   = function( _, key ) Expy:SetBottomPadding( key ) end,
+        },
         normal_color = {
-            order    = 3,
+            order    = 4,
             name     = 'Normal Color',
             type     = 'color',
             hasAlpha = true,
@@ -155,7 +165,7 @@ local options = {
             set      = function( _, ... ) Expy:SetColor( Colors.XP, ... ) end,
         },
         rested_color = {
-            order    = 4,
+            order    = 5,
             name     = 'Rested Color',
             type     = 'color',
             hasAlpha = true,
@@ -163,7 +173,7 @@ local options = {
             set      = function( _, ... ) Expy:SetColor( Colors.RESTED_XP, ... ) end,
         },
         resting_color = {
-            order    = 5,
+            order    = 6,
             name     = 'Resting Color',
             type     = 'color',
             hasAlpha = true,
@@ -171,7 +181,7 @@ local options = {
             set      = function( _, ... ) Expy:SetColor( Colors.RESTING_XP, ... ) end,
         },
         backdrop_color = {
-            order    = 6,
+            order    = 7,
             name     = 'Backdrop Color',
             type     = 'color',
             hasAlpha = true,
@@ -199,6 +209,7 @@ function Expy:OnInitialize()
             font    = LibSM:GetDefault( 'font' ),
             height  = 8,
             colors  = DefaultColors,
+            bottom  = 0,
         }
     }
 
@@ -273,6 +284,28 @@ function Expy:GetColor( color_idx )
 end
 
 ---
+-- Set the vertical padding off the bottom of the screen
+-- @param new_padding the new padding value
+--
+function Expy:SetBottomPadding( new_padding )
+    self.db.global.bottom = new_padding
+    self.m_Frame:ClearAllPoints()
+    self.m_Frame:SetPoint( 'BOTTOM', UIParent, 'BOTTOM', 0, new_padding )
+end
+
+---
+-- Get the vertical padding off the bottom of the screen
+-- @return vertical padding
+--
+function Expy:GetBottomPadding()
+    if ( type( self.db.global.bottom) ~= 'number' ) then
+        self.db.global.bottom = 0
+    end
+
+    return self.db.global.bottom
+end
+
+---
 -- Called when this addon is enabled
 --
 function Expy:OnEnable()
@@ -307,7 +340,7 @@ function Expy:InitializeFrame()
     self.m_Frame:SetMovable( false )
 
     self.m_Frame:ClearAllPoints()
-    self.m_Frame:SetPoint( 'BOTTOM', UIParent, 'BOTTOM', 0, 0 )
+    self.m_Frame:SetPoint( 'BOTTOM', UIParent, 'BOTTOM', 0, self:GetBottomPadding() )
     self.m_Frame:SetWidth( UIParent:GetWidth() )
     self.m_Frame:SetHeight( self.db.global.height or 8 )
 
@@ -323,6 +356,7 @@ function Expy:InitializeFrame()
     self.m_RestBar:SetPoint( 'TOPLEFT', self.m_Frame, 'TOPLEFT', -1, -1 )
     self.m_RestBar:SetPoint( 'BOTTOMRIGHT', self.m_Frame, 'BOTTOMRIGHT', 1, 1 )
     self.m_RestBar:SetMinMaxValues( 0.0, 1.0 )
+    self.m_RestBar:SetFrameLevel( 1 )
 
     LibSmooth:SmoothBar( self.m_RestBar )
 
@@ -332,6 +366,7 @@ function Expy:InitializeFrame()
     self.m_XPBar:SetPoint( 'TOPLEFT', self.m_Frame, 'TOPLEFT', -1, -1 )
     self.m_XPBar:SetPoint( 'BOTTOMRIGHT', self.m_Frame, 'BOTTOMRIGHT', 1, 1 )
     self.m_XPBar:SetMinMaxValues( 0.0, 1.0 )
+    self.m_XPBar:SetFrameLevel( 2 )
 
     LibSmooth:SmoothBar( self.m_XPBar )
 
