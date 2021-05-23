@@ -267,7 +267,7 @@ function Expy:SetColor( color_idx, r, g, b, a )
 
     self:Invalidate( InvalidationTypes.REST_STATE ) -- slight cheese to avoid duplicate logic
     self.m_XPBar:SetStatusBarColor( self:GetColor( Colors.XP ) )
-    self.m_Frame:SetBackdropColor( self:GetColor( Colors.BACKDROP ) )
+    self.m_Background:SetColorTexture( self:GetColor( Colors.BACKDROP ) )
 end
 
 ---
@@ -344,11 +344,10 @@ function Expy:InitializeFrame()
     self.m_Frame:SetWidth( UIParent:GetWidth() )
     self.m_Frame:SetHeight( self.db.global.height or 8 )
 
-    self.m_Frame:SetBackdrop( {
-        bgFile = statusbar,
-    } )
-
-    self.m_Frame:SetBackdropColor( self:GetColor( Colors.BACKDROP ) )
+    self.m_Background = self.m_Frame:CreateTexture( nil, 'BACKGROUND' )
+    self.m_Background:SetTexture( statusbar )
+    self.m_Background:SetAllPoints( self.m_Frame )
+    self.m_Background:SetColorTexture( self:GetColor( Colors.BACKDROP ) )
 
     self.m_RestBar = CreateFrame( 'StatusBar', 'Expy.RestBar', self.m_Frame )
     self.m_RestBar:SetStatusBarTexture( statusbar )
